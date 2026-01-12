@@ -31,9 +31,9 @@ def extract_chroma_features(filepath, sr_target, hop_length):
 
 for filename in files_fullname:
     if "maj" in filename:
-        maj_min_classn.append(1)
-    elif "min" in filename:
         maj_min_classn.append(0)
+    elif "min" in filename:
+        maj_min_classn.append(1)
     else:
         continue # prevent dim/aug chords from being counted
     
@@ -68,22 +68,16 @@ model = Sequential([
     Dense(1, activation="sigmoid")
 ])
 
-model.compile(
-    optimizer="adam",
-    loss="binary_crossentropy",
-    metrics=["accuracy"]
-)
+model.compile(optimizer="adam", loss="binary_crossentropy", metrics=["accuracy"])
 
 model.summary()
 
 # 4 – TRAINING THE MODEL
 
-model.fit(
-    X_train, y_train,
-    validation_data=(X_val, y_val),
-    epochs=40,
-    batch_size=8
-)
+def train_model():
+    model.fit(X_train, y_train, validation_data=(X_val, y_val), epochs=40, batch_size=8)
+
+train_model()
 
 # 5 – EVALUATIING THE MODEL
 
@@ -91,7 +85,14 @@ val_loss, val_acc = model.evaluate(X_val, y_val)
 print("Validation accuracy:", val_acc)
 
 y_prob = model.predict(X_val)
-y_pred = (y_prob <= 0.5).astype(int).flatten()
+y_pred = (y_prob > 0.5).astype(int).flatten()
+
+redo_counter = 0
+
+if ((val_acc <= 0.5) and (redo_counter <=2)):
+    print("Swapping! Swap counter: ", redo_counter)
+    y_pred = (y_prob < 0.5).astype(int).flatten()
+    redo_counter += 1
 
 def show_confusion_matrix():
     cm = confusion_matrix(y_val, y_pred)
