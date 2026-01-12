@@ -14,6 +14,7 @@ from tensorflow.keras.models import Sequential # type: ignore
 from tensorflow.keras.layers import LSTM, Dense, Masking, Bidirectional, Dropout # type: ignore
 
 # 1 – LOAD AND PREPROCESS AUDIO FILES
+
 files_fullname = sorted(f for f in glob.glob('piano_triads/*.wav') if "maj" in f or "min" in f) # to skip over dim/aug chords in the dataset
 
 chroma_frames = []
@@ -30,19 +31,23 @@ def extract_chroma_features(filepath, sr_target, hop_length):
 
 for filename in files_fullname:
     if "maj" in filename:
-        maj_min_classn.append(0)
-    elif "min" in filename:
         maj_min_classn.append(1)
+    elif "min" in filename:
+        maj_min_classn.append(0)
     else:
         continue # prevent dim/aug chords from being counted
     
     chroma = extract_chroma_features(filename, sr_target, hop_length)
+    # chroma is a two dimensional array with shape (65, 12). 65 refers to the number of frames per file and 12 refers to the number of dimensions in each frame.
     chroma_frames.append(chroma)
     frames_per_file.append(len(chroma))
 
+print(len(chroma_frames))
 chroma_frames = [scaler.fit_transform(seq) for seq in chroma_frames] # seq = one element in the chroma_frames array = one "sequence" of chroma vectors...
 
 chroma_frames_pad = pad_sequences(chroma_frames, padding="post", dtype="float32")
+# chroma_frames_pad is a 3-dimensional array with shape (288, 65, 12). 288 refers to the number of files which have been converted to chroma frames, 65 refers to
+# the number of frames per file and 12 refers to the number of dimensions in each frame
 
 # 2 – SPLITTING INTO TRAIN/VALIDATION/TEST
 
@@ -53,12 +58,13 @@ X_train, X_temp, y_train, y_temp = train_test_split(chroma_frames_pad, maj_min_c
 
 X_val, X_test, y_val, y_test = train_test_split(X_temp, y_temp, test_size=0.5, random_state=42, stratify=y_temp) # Splitting temp into validation/test
 
+
 # 3 – BUILDING THE LSTM
 
 model = Sequential([
     Masking(mask_value=0.0, input_shape=(chroma_frames_pad.shape[1], 12)),
-    LSTM(32),
-    Dense(16, activation="sigmoid"),
+    LSTM(16, return_sequences=False),
+    Dense(16, activation="relu"),
     Dense(1, activation="sigmoid")
 ])
 
