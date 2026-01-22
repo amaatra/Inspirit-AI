@@ -43,19 +43,22 @@ labels_per_frame = np.array(labels_per_frame)
 
 start = time.time()
 
-X_train, X_test, y_train, y_test = train_test_split(all_chroma_frames, labels_per_frame, test_size=0.2) 
+X_train, X_temp, y_train, y_temp = train_test_split(all_chroma_frames, labels_per_frame, test_size=0.2) 
+
+X_val, X_test, y_val, y_test = train_test_split(X_temp, y_temp, test_size=0.5)
+
 
 unique_train, counts_train = np.unique(y_train, return_counts=True) # Faster way would be to take the sum
-unique_test, counts_test = np.unique(y_test, return_counts=True)
+unique_test, counts_test = np.unique(y_val, return_counts=True)
 
 model = RandomForestClassifier(n_estimators=200, max_depth = 5, random_state=42)
 model.fit(X_train, y_train)
-y_pred = model.predict(X_test)
+y_pred = model.predict(X_val)
 
 end = time.time()
 print("Runtime:", (end - start))
 
-accuracy = accuracy_score(y_test, y_pred)
+accuracy = accuracy_score(y_val, y_pred)
 print("Accuracy: ", accuracy)
 
 # 5 – TESTING WITH UNSEEN DATA
@@ -83,7 +86,7 @@ test_pred2 = predict_chord_from_file(test_file1, model, scaler, sr_target, hop_l
 print(test_pred2)
 
 def show_confusion_matrix():
-    cm = confusion_matrix(y_test, y_pred)
+    cm = confusion_matrix(y_val, y_pred)
     disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=["Major", "Minor"])
     disp.plot(cmap=plt.cm.Blues)
     plt.title('Confusion Matrix')

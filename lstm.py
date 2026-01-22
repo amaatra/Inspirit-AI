@@ -23,10 +23,12 @@ maj_min_classn = []
 scaler = MinMaxScaler(feature_range=(0, 1))
 sr_target = 22050
 hop_length = 1024
+EPOCHS = 1
+BATCHSIZE = 8
 
 def extract_chroma_features(filepath, sr_target, hop_length):
         y, sr = librosa.load(filepath, sr=sr_target, mono=True)
-        chroma = librosa.feature.chroma_cens(y=y, sr=sr, hop_length=hop_length).T
+        chroma = librosa.feature.chroma_cens(y=y, sr=sr, hop_length=hop_length)
         return chroma
 
 for filename in files_fullname:
@@ -45,16 +47,16 @@ for filename in files_fullname:
 print(len(chroma_frames))
 chroma_frames = [scaler.fit_transform(seq) for seq in chroma_frames] # seq = one element in the chroma_frames array = one "sequence" of chroma vectors...
 
-chroma_frames_pad = pad_sequences(chroma_frames, padding="post", dtype="float32")
+# chroma_frames_pad = pad_sequences(chroma_frames, padding="post", dtype="float32")
 # chroma_frames_pad is a 3-dimensional array with shape (288, 65, 12). 288 refers to the number of files which have been converted to chroma frames, 65 refers to
 # the number of frames per file and 12 refers to the number of dimensions in each frame
 
 # 2 – SPLITTING INTO TRAIN/VALIDATION/TEST
 
-chroma_frames_pad = np.array(chroma_frames_pad)
+chroma_frames = np.array(chroma_frames)
 maj_min_classn = np.array(maj_min_classn)
 
-X_train, X_temp, y_train, y_temp = train_test_split(chroma_frames_pad, maj_min_classn, test_size=0.25, random_state=42, stratify=maj_min_classn) # Splitting into train/temp
+X_train, X_temp, y_train, y_temp = train_test_split(chroma_frames, maj_min_classn, test_size=0.2, random_state=42, stratify=maj_min_classn) # Splitting into train/temp
 
 X_val, X_test, y_val, y_test = train_test_split(X_temp, y_temp, test_size=0.5, random_state=42, stratify=y_temp) # Splitting temp into validation/test
 
@@ -62,7 +64,7 @@ X_val, X_test, y_val, y_test = train_test_split(X_temp, y_temp, test_size=0.5, r
 # 3 – BUILDING THE LSTM
 
 model = Sequential([
-    Masking(mask_value=0.0, input_shape=(chroma_frames_pad.shape[1], 12)),
+    # Masking(mask_value=0.0, input_shape=(chroma_frames_pad.shape[1], 12)),
     LSTM(16, return_sequences=False),
     Dense(16, activation="relu"),
     Dense(1, activation="sigmoid")
@@ -74,25 +76,15 @@ model.summary()
 
 # 4 – TRAINING THE MODEL
 
-def train_model():
-    model.fit(X_train, y_train, validation_data=(X_val, y_val), epochs=40, batch_size=8)
-
-train_model()
+history = model.fit(X_train, y_train, validation_data=(X_val, y_val), epochs=EPOCHS, batch_size=BATCHSIZE)
 
 # 5 – EVALUATIING THE MODEL
 
-val_loss, val_acc = model.evaluate(X_val, y_val)
-print("Validation accuracy:", val_acc)
+# val_loss, val_acc = model.evaluate(X_val, y_val)
+# print("Validation accuracy:", val_acc)
 
 y_prob = model.predict(X_val)
 y_pred = (y_prob > 0.5).astype(int).flatten()
-
-redo_counter = 0
-
-if ((val_acc <= 0.5) and (redo_counter <=2)):
-    print("Swapping! Swap counter: ", redo_counter)
-    y_pred = (y_prob < 0.5).astype(int).flatten()
-    redo_counter += 1
 
 def show_confusion_matrix():
     cm = confusion_matrix(y_val, y_pred)
