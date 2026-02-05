@@ -14,18 +14,29 @@ from tensorflow.keras.layers import Dense, Conv2D, InputLayer
 from tensorflow.keras.layers import Activation, MaxPooling2D, Dropout, Flatten, Reshape
 from tensorflow.keras.utils import to_categorical
 
-# 1 – LOAD AND PREPROCESS AUDIO FILES
-
-files_fullname = sorted(f for f in glob.glob('piano_triads/*.wav') if "maj" in f or "min" in f) # to skip over dim/aug chords in the dataset
+# 0 – CONSTS/FUNCTIONS
 
 chroma_frames = []
 frames_per_file = []
 maj_min_classn = []
 scaler = MinMaxScaler(feature_range=(0, 1))
+
 sr_target = 22050
 hop_length = 1024
-EPOCHS = 70
+
+EPOCHS = 22
 BATCHSIZE = 8
+
+def show_confusion_matrix():
+    cm = confusion_matrix(y_val, y_pred)
+    disp = ConfusionMatrixDisplay(cm, display_labels=["Major", "Minor"])
+    disp.plot(cmap=plt.cm.Blues)
+    plt.title("Confusion Matrix (CNN)")
+    plt.show()
+
+# 1 – LOAD AND PREPROCESS AUDIO FILES
+
+files_fullname = sorted(f for f in glob.glob('piano_triads/*.wav') if "maj" in f or "min" in f) # to skip over dim/aug chords in the dataset
 
 def extract_chroma_features(filepath, sr_target, hop_length):
         y, sr = librosa.load(filepath, sr=sr_target, mono=True)
@@ -67,12 +78,15 @@ X_train = np.array([scaler.transform(x) for x in X_train])
 X_val   = np.array([scaler.transform(x) for x in X_val])
 X_test  = np.array([scaler.transform(x) for x in X_test])
 
-# 3 – BUILDING THE CNN – NOT DONE YET
+X_train = np.expand_dims(X_train, -1)
+X_val = np.expand_dims(X_val, -1)
+X_test = np.expand_dims(X_test, -1)
+
+# 3 – BUILDING THE CNN
 
 model = Sequential()
 
-model.add(InputLayer(input_shape=(12,65)))
-model.add(Reshape((12, 65, 1)))
+model.add(InputLayer(input_shape=(12, 65, 1)))
 
 model.add(Conv2D(64, (3, 3), padding='same'))
 model.add(Activation('relu'))
@@ -87,15 +101,6 @@ model.add(Conv2D(128, (3, 3), padding='same'))
 model.add(Activation('relu'))
 model.add(MaxPooling2D(pool_size=(2, 2), strides=2))
 model.add(Dropout(0.1))
-
-""" model.add(Conv2D(256, (3, 3), padding='same'))
-model.add(Activation('relu'))
-model.add(Conv2D(256, (3, 3), padding='same'))
-model.add(Activation('relu'))
-model.add(Conv2D(256, (3, 3), padding='same'))
-model.add(Activation('relu'))
-model.add(MaxPooling2D(pool_size=(2, 2), strides=2))
-model.add(Dropout(0.5)) """
 
 # Not doing the full VGG16 model because the pooling may collapse information too aggressively...!
 
@@ -126,6 +131,8 @@ plt.plot(history.history['val_loss'])
 plt.legend(['train', 'validation', 'train_loss', 'val_loss'], loc='upper left')
 plt.show()
 
+print("Accuracy: ", history.history['accuracy'][-1])
+
 # 5 – EVALUATIING THE MODEL
 
 # val_loss, val_acc = model.evaluate(X_val, y_val)
@@ -133,13 +140,6 @@ plt.show()
 
 y_prob = model.predict(X_val)
 y_pred = np.argmax(y_prob, axis=1)
-
-def show_confusion_matrix():
-    cm = confusion_matrix(y_val, y_pred)
-    disp = ConfusionMatrixDisplay(cm, display_labels=["Major", "Minor"])
-    disp.plot(cmap=plt.cm.Blues)
-    plt.title("Confusion Matrix (CNN)")
-    plt.show()
 
 show_cm = input("Show confusion matrix? y/n")
 
