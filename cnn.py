@@ -24,7 +24,7 @@ scaler = MinMaxScaler(feature_range=(0, 1))
 sr_target = 22050
 hop_length = 1024
 
-EPOCHS = 22
+EPOCHS = 70
 BATCHSIZE = 8
 
 def show_confusion_matrix():
@@ -74,10 +74,6 @@ X_val, X_test, y_val, y_test = train_test_split(X_temp, y_temp, test_size=0.5, r
 X_train_reshaped = np.vstack(X_train)
 scaler.fit(X_train_reshaped)
 
-X_train = np.array([scaler.transform(x) for x in X_train])
-X_val   = np.array([scaler.transform(x) for x in X_val])
-X_test  = np.array([scaler.transform(x) for x in X_test])
-
 X_train = np.expand_dims(X_train, -1)
 X_val = np.expand_dims(X_val, -1)
 X_test = np.expand_dims(X_test, -1)
@@ -125,13 +121,17 @@ model.summary()
 
 plt.plot(history.history['accuracy'])
 plt.plot(history.history['val_accuracy'])
-plt.plot(history.history['loss'])
-plt.plot(history.history['val_loss'])
-
-plt.legend(['train', 'validation', 'train_loss', 'val_loss'], loc='upper left')
+plt.title('Learning Curves (CNN)')
+plt.legend(['train', 'validation'], loc='upper left')
 plt.show()
 
-print("Accuracy: ", history.history['accuracy'][-1])
+plt.plot(history.history['loss'])
+plt.plot(history.history['val_loss'])
+plt.title('Loss Curves (CNN)')
+plt.legend(['train_loss', 'val_loss'], loc='upper left')
+plt.show()
+
+print("Accuracy: ", history.history['val_accuracy'][-1])
 
 # 5 – EVALUATIING THE MODEL
 

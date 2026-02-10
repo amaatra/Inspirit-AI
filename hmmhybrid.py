@@ -83,7 +83,7 @@ print("Unique labels:", np.unique(label_array, return_counts=True))
 
 file_indices = np.arange(len(chroma_frames))
 
-train_files, temp_files = train_test_split(
+train_files, temp_files = train_test_split( # size = 288
     file_indices,
     test_size=0.2,
     random_state=42,
@@ -131,13 +131,16 @@ train_states = model.predict(X_train_probs)
 
 state_to_label = {}
 
-for state in np.unique(train_states):
-    labels_in_state = y_train[train_states == state]
-    majority_label = np.bincount(labels_in_state).argmax()
+for state in range(model.n_components):
+    mask = (train_states == state)
+    if np.sum(mask) == 0:
+        # state never seen during training
+        state_to_label[state] = 0  # default (e.g. Major)
+    else:
+        majority_label = np.bincount(y_train[mask]).argmax()
+        state_to_label[state] = majority_label
 
-    state_to_label[state] = majority_label
-
-print("HMM state -> chord mapping:", state_to_label)
+print("Final HMM state -> label mapping:", state_to_label)
 
 # 4 – EVALUATE HYBRID MODEL
 
@@ -162,6 +165,25 @@ print("Hybrid HMM accuracy:", accuracy)
 
 end = time.time()
 print("Runtime:", (end - start))
+
+y, sr = librosa.load("piano_triads/A_maj_4_1.wav", sr=sr_target, mono=True)
+chroma_25 = librosa.feature.chroma_cens(y=y, sr=sr, hop_length=hop_length).T
+chroma = scaler.transform(chroma_25)
+
+rf_probs_log = np.log(X_val_probs + 1e-8)  # numerical safety
+hmm_states = model.predict(rf_probs_log)
+
+# Map states to labels
+hmm_labels = np.array([state_to_label[int(s)] for s in hmm_states])
+# 0 = Major, 1 = Minor
+
+# Plot
+plt.figure(figsize=(10, 3))
+plt.step(range(len(hmm_labels)), hmm_labels, where="post")
+plt.yticks([0, 1], ["Major", "Minor"])
+plt.xlabel("Frame index")
+plt.title("HMM decoded chord states over time")
+plt.show()
 
 show_cm = input("Show confusion matrix? y/n")
 

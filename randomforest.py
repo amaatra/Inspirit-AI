@@ -88,6 +88,26 @@ y_pred = model.predict(X_val)
 accuracy = accuracy_score(y_val, y_pred)
 print("Accuracy: ", accuracy)
 
+# GETTING THE CLASS PROBABLILTIONES
+
+y, sr = librosa.load("piano_triads/A_maj_4_1.wav", sr=sr_target, mono=True)
+chroma_25 = librosa.feature.chroma_cens(y=y, sr=sr, hop_length=hop_length).T
+chroma = scaler.transform(chroma_25)
+
+# RF frame-level probabilities
+rf_probs = model.predict_proba(chroma_25)
+minor_probs_rf = rf_probs[:, 1]  # P(Minor)
+
+# Plot
+plt.figure(figsize=(10, 4))
+plt.plot(minor_probs_rf, label="RF P(Minor)", alpha=0.8)
+plt.xlabel("Frame index")
+plt.ylabel("Probability")
+plt.title("Random Forest frame-level predictions")
+plt.ylim(0, 1)
+plt.legend()
+plt.show()
+
 # 5 – TESTING WITH UNSEEN DATA
 
 test_file = "M.mp3"
@@ -102,3 +122,4 @@ show_cm = input("Show confusion matrix? y/n ")
 
 if (show_cm == "y"):
     show_confusion_matrix()
+
